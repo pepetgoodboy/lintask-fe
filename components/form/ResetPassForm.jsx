@@ -12,7 +12,7 @@ export default function ResetPassForm({ fields, buttonText }) {
   const router = useRouter();
 
   const [formData, setFormData] = useState({
-    email: "",
+    password: "",
   });
   const [loading, setLoading] = useState(false);
 

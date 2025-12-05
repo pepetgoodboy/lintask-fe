@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import InputAuth from "@/components/ui/input/InputAuth";
-import { registerUser, verifUser } from "@/lib/api/auth";
+import { registerUser, verifUser, resendCode } from "@/lib/api/auth";
 import ButtonAuth from "../ui/button/ButtonAuth";
 
 export default function RegisterForm({
@@ -28,16 +28,36 @@ export default function RegisterForm({
   // ---- VERIFICATION CODE STATES ----
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const inputsRef = useRef([]);
-  const [timeLeft, setTimeLeft] = useState(600);
+  const [canResend, setCanResend] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(60);
+
+  // ----- Client-Side Initialization -----
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      // Retrieve the stored values from sessionStorage only after rendering on the client
+      const storedVerifPage = sessionStorage.getItem("verifPage");
+      const storedEmail = sessionStorage.getItem("email");
+
+      if (storedVerifPage === "true") {
+        setVerifPage(true);
+      }
+      if (storedEmail) {
+        setFormData((prevData) => ({ ...prevData, email: storedEmail }));
+      }
+    }
+  }, []);
 
   // Countdown
   useEffect(() => {
     if (!verifPage) return;
+    if (timeLeft === 0) return;
 
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
+          setCanResend(true);
           return 0;
         }
         return prev - 1;
@@ -45,7 +65,7 @@ export default function RegisterForm({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [verifPage]);
+  }, [verifPage, timeLeft]);
 
   const formattedTime = () => {
     const minutes = Math.floor(timeLeft / 60);
@@ -95,11 +115,35 @@ export default function RegisterForm({
 
       // masuk ke halaman verif
       setVerifPage(true);
+      sessionStorage.setItem("email", formData.email);
+      sessionStorage.setItem("verifPage", true);
     } catch (err) {
       toast.error(err.message || "Gagal daftar");
       resetForm();
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ---- HANDLE RESEND CODE ----
+  const handleResend = async () => {
+    if (resending) return;
+
+    setResending(true);
+
+    try {
+      const response = await resendCode(
+        formData.email || sessionStorage.getItem("email")
+      );
+      toast.success(response.message || "Kode verifikasi baru telah dikirim");
+
+      setTimeLeft(60);
+      setFormData({ ...formData, code: "" });
+      setCanResend(false);
+    } catch (err) {
+      toast.error(err.message || "Gagal mengirim ulang kode");
+    } finally {
+      setResending(false);
     }
   };
 
@@ -115,8 +159,11 @@ export default function RegisterForm({
 
       router.push("/login");
       resetForm();
+      sessionStorage.removeItem("email");
+      sessionStorage.removeItem("verifPage");
     } catch (err) {
       toast.error(err.message || "Kode salah atau kadaluwarsa");
+      setFormData({ ...formData, code: "" });
     } finally {
       setLoading(false);
     }
@@ -169,12 +216,27 @@ export default function RegisterForm({
               ))}
             </div>
 
-            <p className="text-center text-sm text-zinc-500">
-              Kode akan kedaluwarsa dalam{" "}
-              <span className="font-semibold text-secondary">
-                {formattedTime()}
-              </span>
-            </p>
+            {!canResend ? (
+              <p className="text-center text-sm text-zinc-500">
+                Kode akan kedaluwarsa dalam{" "}
+                <span className="font-semibold text-secondary">
+                  {formattedTime()}
+                </span>
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resending}
+                className={`w-full text-sm font-medium ${
+                  resending
+                    ? "text-zinc-400 cursor-not-allowed pointer-events-none"
+                    : "text-secondary hover:underline cursor-pointer"
+                }`}
+              >
+                {resending ? "Mengirim..." : "Kirim Ulang"}
+              </button>
+            )}
           </div>
         )}
 
