@@ -30,7 +30,7 @@ export default function RegisterForm({
   const inputsRef = useRef([]);
   const [canResend, setCanResend] = useState(false);
   const [resending, setResending] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(60);
+  const [timeLeft, setTimeLeft] = useState(300);
 
   // ----- Client-Side Initialization -----
   useEffect(() => {
@@ -113,7 +113,6 @@ export default function RegisterForm({
 
       toast.success(response.message || "Berhasil daftar!");
 
-      // masuk ke halaman verif
       setVerifPage(true);
       sessionStorage.setItem("email", formData.email);
       sessionStorage.setItem("verifPage", true);
@@ -193,7 +192,7 @@ export default function RegisterForm({
         ) : (
           <div className="space-y-6">
             <p className="text-center text-sm text-zinc-600">
-              Masukkan 6-digit kode yang kami kirim ke email kamu
+              Masukkan 6 digit kode yang kami kirim ke email kamu
             </p>
 
             <div className="flex justify-center gap-3">
